@@ -1,0 +1,261 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Study Planner</title>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background-color: #f4f4f9;
+            margin: 0;
+            padding: 0;
+        }
+        .container {
+            max-width: 800px;
+            margin: 50px auto;
+            background: #fff;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+        }
+        h1 {
+            text-align: center;
+            color: #333;
+        }
+        form {
+            display: flex;
+            flex-direction: column;
+        }
+        input, select, textarea {
+            margin: 10px 0;
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            font-size: 16px;
+        }
+        button {
+            padding: 10px;
+            background-color: #4CAF50;
+            color: white;
+            border: none;
+            border-radius: 4px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+        button:hover {
+            background-color: #45a049;
+        }
+        .schedule {
+            margin-top: 20px;
+        }
+        .schedule-item {
+            background: #e8f5e9;
+            padding: 10px;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            display: flex;
+            flex-direction: column;
+        }
+        .actions button {
+            margin: 5px;
+            padding: 5px 10px;
+            font-size: 14px;
+            cursor: pointer;
+            border: none;
+            border-radius: 4px;
+        }
+        .actions .edit {
+            background-color: #ffa500;
+            color: white;
+        }
+        .actions .delete {
+            background-color: #ff4d4d;
+            color: white;
+        }
+        .topics {
+            margin-top: 10px;
+        }
+        .topics ul {
+            list-style: none;
+            padding: 0;
+        }
+        .topics li {
+            display: flex;
+            align-items: center;
+            margin-bottom: 5px;
+        }
+        .topics input[type="checkbox"] {
+            margin-right: 10px;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>Study Planner</h1>
+        <form id="studyForm">
+            <label for="subject">Subject:</label>
+            <input type="text" id="subject" name="subject" required>
+
+            <label for="difficulty">Difficulty:</label>
+            <select id="difficulty" name="difficulty" required>
+                <option value="easy">Easy</option>
+                <option value="medium">Medium</option>
+                <option value="hard">Hard</option>
+            </select>
+
+            <label for="hours">Hours to Study:</label>
+            <input type="number" id="hours" name="hours" min="1" required>
+
+            <label for="notes">Notes:</label>
+            <textarea id="notes" name="notes" rows="4"></textarea>
+
+            <label for="topics">Topics (comma separated):</label>
+            <input type="text" id="topics" name="topics" placeholder="e.g., Algebra, Geometry, Trigonometry">
+
+            <button type="submit">Add to Schedule</button>
+        </form>
+
+        <div class="schedule">
+            <h2>Your Study Schedule</h2>
+            <div id="scheduleList"></div>
+        </div>
+    </div>
+
+    <script>
+        const form = document.getElementById('studyForm');
+        const scheduleList = document.getElementById('scheduleList');
+
+        // Load schedule from localStorage
+        function loadSchedule() {
+            const savedSchedule = JSON.parse(localStorage.getItem('studySchedule')) || [];
+            savedSchedule.forEach(item => renderScheduleItem(item));
+        }
+
+        // Save schedule to localStorage
+        function saveSchedule(schedule) {
+            localStorage.setItem('studySchedule', JSON.stringify(schedule));
+        }
+
+        // Render a single schedule item
+        function renderScheduleItem({ subject, difficulty, hours, notes, topics }) {
+            const scheduleItem = document.createElement('div');
+            scheduleItem.classList.add('schedule-item');
+
+            const content = document.createElement('div');
+            content.innerHTML = `
+                <strong>Subject:</strong> ${subject} <br>
+                <strong>Difficulty:</strong> ${difficulty} <br>
+                <strong>Hours:</strong> ${hours} <br>
+                <strong>Notes:</strong> ${notes}
+            `;
+
+            const topicList = document.createElement('div');
+            topicList.classList.add('topics');
+            topicList.innerHTML = `<strong>Topics:</strong>`;
+            const ul = document.createElement('ul');
+
+            topics.forEach(topic => {
+                const li = document.createElement('li');
+                const checkbox = document.createElement('input');
+                checkbox.type = 'checkbox';
+                checkbox.id = `${subject}-${topic}`;
+                checkbox.checked = topic.completed;
+
+                checkbox.addEventListener('change', () => {
+                    topic.completed = checkbox.checked;
+                    updateLocalStorage();
+                });
+
+                const label = document.createElement('label');
+                label.htmlFor = `${subject}-${topic}`;
+                label.textContent = topic.name;
+
+                li.appendChild(checkbox);
+                li.appendChild(label);
+                ul.appendChild(li);
+            });
+
+            topicList.appendChild(ul);
+
+            const actions = document.createElement('div');
+            actions.classList.add('actions');
+
+            const editButton = document.createElement('button');
+            editButton.classList.add('edit');
+            editButton.textContent = 'Edit';
+            editButton.addEventListener('click', () => {
+                document.getElementById('subject').value = subject;
+                document.getElementById('difficulty').value = difficulty;
+                document.getElementById('hours').value = hours;
+                document.getElementById('notes').value = notes;
+                document.getElementById('topics').value = topics.map(t => t.name).join(', ');
+                removeItem(subject);
+            });
+
+            const deleteButton = document.createElement('button');
+            deleteButton.classList.add('delete');
+            deleteButton.textContent = 'Delete';
+            deleteButton.addEventListener('click', () => {
+                removeItem(subject);
+            });
+
+            actions.appendChild(editButton);
+            actions.appendChild(deleteButton);
+
+            scheduleItem.appendChild(content);
+            scheduleItem.appendChild(topicList);
+            scheduleItem.appendChild(actions);
+
+            scheduleList.appendChild(scheduleItem);
+        }
+
+        // Remove item from localStorage and UI
+        function removeItem(subject) {
+            const currentSchedule = JSON.parse(localStorage.getItem('studySchedule')) || [];
+            const updatedSchedule = currentSchedule.filter(item => item.subject !== subject);
+            saveSchedule(updatedSchedule);
+            scheduleList.innerHTML = '';
+            loadSchedule();
+        }
+
+        // Update localStorage with the current schedule
+        function updateLocalStorage() {
+            const currentItems = [];
+            scheduleList.querySelectorAll('.schedule-item').forEach(item => {
+                const subject = item.querySelector('div strong').textContent.split(': ')[1];
+                const topics = Array.from(item.querySelectorAll('ul li')).map(li => ({
+                    name: li.querySelector('label').textContent,
+                    completed: li.querySelector('input').checked
+                }));
+                currentItems.push({ subject, topics });
+            });
+            saveSchedule(currentItems);
+        }
+
+        // Handle form submission
+        form.addEventListener('submit', (e) => {
+            e.preventDefault();
+
+            const subject = document.getElementById('subject').value;
+            const difficulty = document.getElementById('difficulty').value;
+            const hours = document.getElementById('hours').value;
+            const notes = document.getElementById('notes').value;
+            const topicsInput = document.getElementById('topics').value;
+            const topics = topicsInput.split(',').map(topic => ({ name: topic.trim(), completed: false }));
+
+            const newItem = { subject, difficulty, hours, notes, topics };
+
+            const currentSchedule = JSON.parse(localStorage.getItem('studySchedule')) || [];
+            currentSchedule.push(newItem);
+            saveSchedule(currentSchedule);
+
+            renderScheduleItem(newItem);
+            form.reset();
+        });
+
+        // Initial load
+        loadSchedule();
+    </script>
+</body>
+</html>
